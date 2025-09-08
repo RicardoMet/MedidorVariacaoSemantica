@@ -3,6 +3,8 @@
 Este repositório contém um script em Python para analisar construções sintáticas extraídas de corpora em português europeu, medindo a sua variabilidade semântica de adjetivos e verbos.
 Esta medição é feita através do cálculo dos diferentes domínios conceptuais associados aos nomes que ocorrem com o adjetivo ou verbo sob análise.
 Quanto mais domínios poderem ocorrer com o verbo ou adjetivo, maior é a sua variação semântica, a qual poderá indicar um uso metafórico.
+
+
 Qualquer dúvida ou questão, contactar: ricardo.santos.monteiro@campus.fcsh.unl.pt
 
 ## Funcionalidades
