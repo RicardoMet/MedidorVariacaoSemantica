@@ -1,13 +1,13 @@
 """
 Análise de Variabilidade Semântica em Construções Sintáticas (Português)
 
-Autor: [O Teu Nome]
+Autor: Ricardo Monteiro
 Descrição:
 -----------
 Este script processa ficheiros XML contendo resultados de KWIC (Key Word in Context)
 extraídos de corpora através de expressões regulares.
 
-Suporta três tipos de construções:
+Executa três tipos de construções:
 - 'svo'   → Sujeito + Verbo + Objeto
 - 'n_adj' → Nome + Adjetivo
 - 'adj_n' → Adjetivo + Nome
@@ -36,7 +36,7 @@ Output:
 """
 
 # =========================
-# 🔧 Dependências e setup
+# Dependências e setup
 # =========================
 import pandas as pd
 from bs4 import BeautifulSoup
@@ -55,13 +55,13 @@ subprocess.run(["python", "-m", "spacy", "download", "pt_core_news_lg"])
 nlp = spacy.load("pt_core_news_lg")
 
 # ======================
-# 📁 Input
+# Input
 # ======================
 file = "input.xml"          # <- caminho do ficheiro XML
 tipo_construcao = "svo"     # 'svo', 'n_adj', 'adj_n'
 
 # =============================
-# 🧹 Pré-processamento
+# Pré-processamento
 # =============================
 def limpar_kwic(texto_kwic):
     return re.sub(r"/[a-z]+", "", texto_kwic)
@@ -74,7 +74,7 @@ kwics = soup.find_all("kwic")
 kwic_pairs = [(limpar_kwic(k.text.strip()), k.text.strip()) for k in kwics]
 
 # ===================================
-# 📐 Extração sintática
+# Extração sintática
 # ===================================
 def extrair_svo(frase):
     doc = nlp(frase)
@@ -113,7 +113,7 @@ def extrair_adj_n(frase):
     return None
 
 # ===============================
-# 🧠 Domínios WordNet
+# Domínios WordNet
 # ===============================
 mapeamento_dominios = {
     'noun.person': 'pessoa',
@@ -134,7 +134,7 @@ mapeamento_dominios = {
     'noun.substance': 'matéria',
     'noun.object': 'objeto',
     'noun.feeling': 'emoção',
-    'noun.phenomenon': 'fenômeno',
+    'noun.phenomenon': 'fenómeno',
 }
 
 def obter_dominios(word, lang='por'):
@@ -149,7 +149,7 @@ def obter_dominios(word, lang='por'):
     return dominio_mapeado, subdominio
 
 # ========================================
-# 🔄 Processamento das frases
+# Processamento das frases
 # ========================================
 dados = []
 for frase_limpa, frase_original in kwic_pairs:
@@ -183,7 +183,7 @@ for entrada in dados:
 df = pd.DataFrame(dados)
 
 # ========================================
-# 📊 Variabilidade semântica
+# Variabilidade semântica
 # ========================================
 if tipo_construcao == "svo":
     # verbo → objeto
@@ -221,8 +221,10 @@ elif tipo_construcao == "n_adj":
     })).reset_index()
 
 # ===============================
-# 📤 Exportar para Excel
+# Exportar para Excel
 # ===============================
+
+
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 output_path = f"output_variabilidade_{tipo_construcao}_{timestamp}.xlsx"
 
@@ -246,3 +248,4 @@ with pd.ExcelWriter(output_path, engine='openpyxl') as writer:
         df_var_sorted.to_excel(writer, index=False, sheet_name="Variabilidade")
 
 print(f"📁 Ficheiro exportado com sucesso: {output_path}")
+
