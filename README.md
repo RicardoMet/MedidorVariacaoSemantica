@@ -16,6 +16,15 @@ Qualquer dúvida ou questão, contactar: ricardo.santos.monteiro@campus.fcsh.unl
 - Cálculo de variabilidade semântica.
 - Exportação de resultados para Excel.
 
+## Ficheiro input
+O ficheiro input deverá ser um XML, descarregado de uma pesquisa em corpous através do SketchEngine.
+
+De modo a que o parser sintático opere da melhor forma, os elementos dos três tipos de construções devem ser respeitados, contendo os KWICs destas apenas os elementos em questão.
+Desta forma, deve ser feita uma pesquisa através de expressões regulares. As seguintes expressões regulares (ou pequenas variações das mesmas) são aconselhadas:
+- Para a construção `svo`: [tag="NC.*"][tag="VM.*"][tag="NC.*"]
+
+
+
 ## Requisitos
 ```bash
 pip install -r requirements.txt
