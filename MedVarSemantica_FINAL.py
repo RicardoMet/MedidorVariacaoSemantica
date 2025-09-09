@@ -35,47 +35,92 @@ Output:
 
 """
 
-# =========================
-# Dependências e setup
-# =========================
+#!/usr/bin/env python3
+"""
+analise_variabilidade.py
+
+Análise de Variabilidade Semântica em Construções Sintáticas (Português)
+
+- Suporta: 'svo' (sujeito+verbo+objeto), 'n_adj' (nome+adjetivo), 'adj_n' (adjetivo+nome)
+- Usa spaCy (pt_core_news_lg) + WordNet (NLTK) para extrair informação e domínios
+- Exporta resultados para Excel com timestamp no nome
+- Pensado para correr em Google Colab, mas também executável localmente
+"""
+
+import sys
+import os
+import subprocess
+from datetime import datetime
+
+# ---------------------------
+# Instala dependências se necessário
+# ---------------------------
+def ensure_package(pkg):
+    try:
+        __import__(pkg)
+    except Exception:
+        print(f"Package '{pkg}' not found. Installing...")
+        subprocess.check_call([sys.executable, "-m", "pip", "install", pkg])
+
+# Pacotes python necessários
+for p in ("pandas", "openpyxl", "beautifulsoup4", "spacy", "nltk"):
+    ensure_package(p)
+
+# Instala / garante o modelo spaCy PT
+try:
+    import spacy
+    spacy.load("pt_core_news_lg")
+except Exception:
+    print("Installing spaCy model 'pt_core_news_lg'...")
+    subprocess.check_call([sys.executable, "-m", "spacy", "download", "pt_core_news_lg"])
+
+# ---------------------------
+# Imports principais
+# ---------------------------
 import pandas as pd
-from bs4 import BeautifulSoup
 import re
 import spacy
 import nltk
+from bs4 import BeautifulSoup
 from nltk.corpus import wordnet as wn
-from datetime import datetime
 
-# Downloads necessários (apenas na 1ª execução)
-nltk.download('wordnet')
-nltk.download('omw-1.4')
-import subprocess
-subprocess.run(["python", "-m", "spacy", "download", "pt_core_news_lg"])
+# Downloads NLTK data se necessário
+nltk.download('wordnet', quiet=True)
+nltk.download('omw-1.4', quiet=True)
 
 nlp = spacy.load("pt_core_news_lg")
 
-# ======================
-# Input
-# ======================
-file = "input.xml"          # <- caminho do ficheiro XML
-tipo_construcao = "svo"     # 'svo', 'n_adj', 'adj_n'
+# ---------------------------
+# CONFIGURAÇÕES DO UTILIZADOR
+# ---------------------------
+# Se estiveres a correr no Colab, podes escolher o ficheiro no teu Drive.
+# Se estiveres a correr localmente, substitui o FILE_PATH por algo local: FILE_PATH = "exemplo_input.xml"
 
-# =============================
-# Pré-processamento
-# =============================
+FILE_PATH = "/content/drive/MyDrive/Constructions_concordances/EXEMPLO.xml"
+
+# Escolhe: 'svo', 'n_adj', 'adj_n'
+tipo_construcao = "svo"
+
+# ---------------------------
+# (Opcional) Montar Google Drive em Colab - só faz sentido no Colab
+# ---------------------------
+try:
+    from google.colab import drive as _drive
+    # Apenas monta se o path começar por /content/drive e não estiver montado
+    if FILE_PATH.startswith("/content/drive") and not os.path.exists("/content/drive/MyDrive"):
+        print("Montando Google Drive...")
+        _drive.mount('/content/drive/')
+except Exception:
+    # Não estamos no Colab; prosseguir sem montar drive
+    pass
+
+# ---------------------------
+# Funções utilitárias
+# ---------------------------
 def limpar_kwic(texto_kwic):
-    return re.sub(r"/[a-z]+", "", texto_kwic)
+    """Remove anotações do KWIC como '/tag'."""
+    return re.sub(r"/[a-zA-Z]+", "", texto_kwic)
 
-with open(file, "r", encoding="utf-8") as f:
-    xml = f.read()
-
-soup = BeautifulSoup(xml, "xml")
-kwics = soup.find_all("kwic")
-kwic_pairs = [(limpar_kwic(k.text.strip()), k.text.strip()) for k in kwics]
-
-# ===================================
-# Extração sintática
-# ===================================
 def extrair_svo(frase):
     doc = nlp(frase)
     sujeito = verbo = objeto = None
@@ -112,9 +157,7 @@ def extrair_adj_n(frase):
             return {"frase_limpa": frase, "adjetivo": doc[i].lemma_, "nome": doc[i + 1].lemma_}
     return None
 
-# ===============================
-# Domínios WordNet
-# ===============================
+# Mapeamento de subdomínios WordNet -> domínios abrangentes (ajusta conforme necessário)
 mapeamento_dominios = {
     'noun.person': 'pessoa',
     'noun.artifact': 'objeto',
@@ -138,9 +181,13 @@ mapeamento_dominios = {
 }
 
 def obter_dominios(word, lang='por'):
-    if not word:
+    """Retorna (dominio, subdominio) para uma palavra; 'desconhecido' se nada for encontrado."""
+    if not word or str(word).strip() == "":
         return "desconhecido", "desconhecido"
-    synsets = wn.synsets(word, lang=lang)
+    try:
+        synsets = wn.synsets(word, lang=lang)
+    except Exception:
+        synsets = []
     if not synsets:
         return "desconhecido", "desconhecido"
     primeiro = synsets[0]
@@ -148,9 +195,25 @@ def obter_dominios(word, lang='por'):
     dominio_mapeado = mapeamento_dominios.get(subdominio, "outro")
     return dominio_mapeado, subdominio
 
-# ========================================
-# Processamento das frases
-# ========================================
+# ---------------------------
+# Leitura do ficheiro XML
+# ---------------------------
+if not os.path.exists(FILE_PATH):
+    raise FileNotFoundError(f"Arquivo não encontrado: {FILE_PATH}\nAltera FILE_PATH para o caminho correto.")
+
+with open(FILE_PATH, "r", encoding="utf-8") as f:
+    xml = f.read()
+
+soup = BeautifulSoup(xml, "xml")
+kwics = soup.find_all("kwic")
+kwic_pairs = [(limpar_kwic(k.text.strip()), k.text.strip()) for k in kwics]
+
+frases_limpas = [p[0] for p in kwic_pairs]
+frases_originais = [p[1] for p in kwic_pairs]
+
+# ---------------------------
+# Extrair e construir dataset
+# ---------------------------
 dados = []
 for frase_limpa, frase_original in kwic_pairs:
     if tipo_construcao == "svo":
@@ -168,32 +231,42 @@ for frase_limpa, frase_original in kwic_pairs:
 
 print(f"Número de frases extraídas: {len(dados)}")
 
+# Preenche domínios
+
 for entrada in dados:
     if tipo_construcao == "svo":
-        entrada["dominio"], entrada["subdominio"] = obter_dominios(entrada["objeto"])
-        entrada["dominio_sujeito"], entrada["subdominio_sujeito"] = obter_dominios(entrada["sujeito"])
+        entrada["dominio"], entrada["subdominio"] = obter_dominios(entrada.get("objeto", ""))
+        entrada["dominio_sujeito"], entrada["subdominio_sujeito"] = obter_dominios(entrada.get("sujeito", ""))
         entrada["construcao"] = f"{entrada['verbo']} X"
     elif tipo_construcao == "n_adj":
-        entrada["dominio"], entrada["subdominio"] = obter_dominios(entrada["nome"])
+        entrada["dominio"], entrada["subdominio"] = obter_dominios(entrada.get("nome", ""))
         entrada["construcao"] = f"{entrada['nome']} + {entrada['adjetivo']}"
     elif tipo_construcao == "adj_n":
-        entrada["dominio"], entrada["subdominio"] = obter_dominios(entrada["nome"])
+        entrada["dominio"], entrada["subdominio"] = obter_dominios(entrada.get("nome", ""))
         entrada["construcao"] = f"{entrada['adjetivo']} {entrada['nome']}"
 
 df = pd.DataFrame(dados)
 
-# ========================================
-# Variabilidade semântica
-# ========================================
+# Normalização de tokens para comparações
+if tipo_construcao in ["n_adj", "adj_n"]:
+    df["nome"] = df["nome"].astype(str).str.lower()
+    df["adjetivo"] = df["adjetivo"].astype(str).str.lower()
+
 if tipo_construcao == "svo":
-    # verbo → objeto
+    # remover Verbos Leves
+    verbos_leves = {"fazer", "ter", "dar", "estar", "haver", "ficar", "pôr", "levar", "deixar", "manter"}
+    df = df[~df["verbo"].isin(verbos_leves)].copy()
+
+# ---------------------------
+# Cálculo da variabilidade
+# ---------------------------
+if tipo_construcao == "svo":
     agrupados_verbo_obj = df.groupby("verbo")["dominio"].apply(list)
     df_var_verbo_obj = agrupados_verbo_obj.apply(lambda x: pd.Series({
         "variabilidade_verbo_obj": len(set(x)),
         "dominios_obj": ", ".join(sorted(set(x)))
     })).reset_index()
 
-    # verbo → sujeito
     agrupados_verbo_suj = df.groupby("verbo")["dominio_sujeito"].apply(list)
     df_var_verbo_suj = agrupados_verbo_suj.apply(lambda x: pd.Series({
         "variabilidade_verbo_suj": len(set(x)),
@@ -206,6 +279,7 @@ elif tipo_construcao == "adj_n":
         "variabilidade_semântica": len(set(x)),
         "dominios": ", ".join(sorted(set(x)))
     })).reset_index()
+    df_var = df_var.rename(columns={"adjetivo": "construcao"})
 
 elif tipo_construcao == "n_adj":
     df['dominio_adjetivo'], df['subdominio_adjetivo'] = zip(*df['adjetivo'].apply(obter_dominios))
@@ -220,33 +294,92 @@ elif tipo_construcao == "n_adj":
         "dominios": ", ".join(sorted(set(x)))
     })).reset_index()
 
-# ===============================
-# Exportar para Excel
-# ===============================
+# ---------------------------
+# Mostrar resultados no terminal (resumo)
+# ---------------------------
+print(f"\n📊 Top 10 construções ({tipo_construcao}):\n")
 
+if tipo_construcao == "n_adj":
+    df_var_nome_sorted = df_var_nome.sort_values(by="variabilidade_nome", ascending=False)
+    df_var_adj_sorted = df_var_adj.sort_values(by="variabilidade_adjetivo", ascending=False)
 
+    print("🔸 Variabilidade por nome:")
+    print(df_var_nome_sorted.head(10).to_string(index=False))
+    print("\n🔸 Variabilidade por adjetivo:")
+    print(df_var_adj_sorted.head(10).to_string(index=False))
+
+    print("\n📌 Exemplos para os 5 nomes mais variáveis:")
+    for nome in df_var_nome_sorted.head(5)["nome"]:
+        print(f"\n🔹 Nome: {nome}")
+        frases_filtradas = df[df["nome"] == nome].head(4)
+        for _, row in frases_filtradas.iterrows():
+            print(f" - {row['frase_limpa']} | adj: {row['adjetivo']} | dom_adjetivo: {row['dominio_adjetivo']}")
+
+    print("\n📌 Exemplos para os 5 adjetivos mais variáveis:")
+    for adj in df_var_adj_sorted.head(5)["adjetivo"]:
+        print(f"\n🔹 Adjetivo: {adj}")
+        frases_filtradas = df[df["adjetivo"] == adj].head(4)
+        for _, row in frases_filtradas.iterrows():
+            print(f" - {row['frase_limpa']} | nome: {row['nome']} | dom_nome: {row['dominio']}")
+
+elif tipo_construcao == "svo":
+    df_var_obj_sorted = df_var_verbo_obj.sort_values(by="variabilidade_verbo_obj", ascending=False)
+    df_var_suj_sorted = df_var_verbo_suj.sort_values(by="variabilidade_verbo_suj", ascending=False)
+
+    print("🔸 Variabilidade verbo → objeto:")
+    print(df_var_obj_sorted.head(10).to_string(index=False))
+
+    print("\n🔸 Variabilidade verbo → sujeito:")
+    print(df_var_suj_sorted.head(10).to_string(index=False))
+
+    print("\n📌 Exemplos (verbo → objeto):")
+    for verbo in df_var_obj_sorted.head(5)["verbo"]:
+        print(f"\n🔹 Verbo: {verbo}")
+        frases_filtradas = df[df["verbo"] == verbo].head(4)
+        for _, row in frases_filtradas.iterrows():
+            print(f" - {row['frase_limpa']} | objeto: {row['objeto']} | dom_obj: {row['dominio']}")
+
+    print("\n📌 Exemplos (verbo → sujeito):")
+    for verbo in df_var_suj_sorted.head(5)["verbo"]:
+        print(f"\n🔹 Verbo: {verbo}")
+        frases_filtradas = df[df["verbo"] == verbo].head(4)
+        for _, row in frases_filtradas.iterrows():
+            print(f" - {row['frase_limpa']} | sujeito: {row['sujeito']} | dom_suj: {row['dominio_sujeito']}")
+
+elif tipo_construcao == "adj_n":
+    df_var_sorted = df_var.sort_values(by="variabilidade_semântica", ascending=False)
+    print(df_var_sorted.head(10).to_string(index=False))
+    print("\n📌 Exemplos:")
+    for adj in df_var_sorted.head(5)["construcao"].str.split().str[0]:
+        frases_filtradas = df[df["adjetivo"] == adj].head(4)
+        for _, row in frases_filtradas.iterrows():
+            print(f" - {row['frase_limpa']} | nome: {row['nome']} | dom_nome: {row['dominio']}")
+
+# ---------------------------
+# Estatísticas de cobertura
+# ---------------------------
+total = len(df)
+desconhecidos = df[df['dominio'] == "desconhecido"].shape[0]
+percentagem = 100 * (total - desconhecidos) / total if total else 0
+print(f"\n📊 Percentagem de Domínios Atribuídos: {percentagem:.2f}% (desconhecido: {100-percentagem:.2f}%)")
+
+# ---------------------------
+# Exportação para Excel (com timestamp)
+# ---------------------------
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-output_path = f"output_variabilidade_{tipo_construcao}_{timestamp}.xlsx"
+output_path = f"/content/drive/MyDrive/Constructions_concordances/output_variabilidade_{tipo_construcao}_{timestamp}.xlsx" \
+    if FILE_PATH.startswith("/content/drive") else f"output_variabilidade_{tipo_construcao}_{timestamp}.xlsx"
 
 with pd.ExcelWriter(output_path, engine='openpyxl') as writer:
     df.to_excel(writer, index=False, sheet_name="Construcoes")
 
     if tipo_construcao == "svo":
-        df_var_obj_sorted = df_var_verbo_obj.sort_values(by="variabilidade_verbo_obj", ascending=False)
-        df_var_suj_sorted = df_var_verbo_suj.sort_values(by="variabilidade_verbo_suj", ascending=False)
         df_var_obj_sorted.to_excel(writer, index=False, sheet_name="Variabilidade_verbo_objeto")
         df_var_suj_sorted.to_excel(writer, index=False, sheet_name="Variabilidade_verbo_sujeito")
-
     elif tipo_construcao == "n_adj":
-        df_var_nome_sorted = df_var_nome.sort_values(by="variabilidade_nome", ascending=False)
-        df_var_adj_sorted = df_var_adj.sort_values(by="variabilidade_adjetivo", ascending=False)
         df_var_nome_sorted.to_excel(writer, index=False, sheet_name="Variabilidade_nome")
         df_var_adj_sorted.to_excel(writer, index=False, sheet_name="Variabilidade_adjetivo")
-
     elif tipo_construcao == "adj_n":
-        df_var_sorted = df_var.sort_values(by="variabilidade_semântica", ascending=False)
         df_var_sorted.to_excel(writer, index=False, sheet_name="Variabilidade")
 
-print(f"📁 Ficheiro exportado com sucesso: {output_path}")
-
-
+print(f"\n📁 Ficheiro exportado com sucesso: {output_path}")
