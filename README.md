@@ -17,13 +17,15 @@ Qualquer dúvida ou questão, contactar: ricardo.santos.monteiro@campus.fcsh.unl
 - Exportação de resultados para Excel.
 
 ## Ficheiro input
-O ficheiro input deverá ser um XML, descarregado de uma pesquisa em corpous através do SketchEngine.
+O ficheiro input deverá ser um XML, descarregado de uma pesquisa em corpus através do SketchEngine.
 
-De modo a que o parser sintático opere da melhor forma, os elementos dos três tipos de construções devem ser respeitados, contendo os KWICs destas apenas os elementos em questão.
-Desta forma, deve ser feita uma pesquisa através de expressões regulares. As seguintes expressões regulares (ou pequenas variações das mesmas) são aconselhadas:
-- Para a construção SVO: `[tag="NC.*"] [tag="VM.*"] [tag="NC.*"]`
+De modo a que o parser sintático opere da melhor forma, os elementos dos três tipos de construções devem ser respeitados: os KWICs devem conter apenas os elementos em questão.
+Desta forma, deve ser feita uma pesquisa através de expressões regulares. 
 
-
+As seguintes expressões regulares (ou pequenas variações das mesmas) são aconselhadas:
+- Para a construção **SVO**: `[tag="NC.*"] [tag="VM.*"] [tag="NC.*"]`
+- Para a construção n_adj: `[tag="NC.*"] [tag="A.*"]`
+- Para a construção adj_n: `[tag="A.*"] [tag="NC.*"]`
 
 
 ## Requisitos
