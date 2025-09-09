@@ -1,5 +1,5 @@
 """
-Análise de Variabilidade Semântica em Construções Sintáticas (Português)
+Análise de Variabilidade Semântica em verbos e adjetivos (Português)
 
 Autor: Ricardo Monteiro
 Descrição:
@@ -248,4 +248,5 @@ with pd.ExcelWriter(output_path, engine='openpyxl') as writer:
         df_var_sorted.to_excel(writer, index=False, sheet_name="Variabilidade")
 
 print(f"📁 Ficheiro exportado com sucesso: {output_path}")
+
 
