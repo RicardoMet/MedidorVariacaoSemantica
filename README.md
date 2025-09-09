@@ -24,6 +24,7 @@ Desta forma, deve ser feita uma pesquisa através de expressões regulares. As s
 - Para a construção `svo`: [tag="NC.*"] [tag="VM.*"] [tag="NC.*"]
 
 
+ [tag="NC.*"] [tag="VM.*"] [tag="NC.*"]
 
 ## Requisitos
 ```bash
