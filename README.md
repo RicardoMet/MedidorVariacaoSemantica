@@ -21,10 +21,10 @@ O ficheiro input deverá ser um XML, descarregado de uma pesquisa em corpous atr
 
 De modo a que o parser sintático opere da melhor forma, os elementos dos três tipos de construções devem ser respeitados, contendo os KWICs destas apenas os elementos em questão.
 Desta forma, deve ser feita uma pesquisa através de expressões regulares. As seguintes expressões regulares (ou pequenas variações das mesmas) são aconselhadas:
-- Para a construção `svo`: [tag="NC.*"] [tag="VM.*"] [tag="NC.*"]
+- Para a construção SVO: `[tag="NC.*"] [tag="VM.*"] [tag="NC.*"]`
 
 
- [tag="NC.*"] [tag="VM.*"] [tag="NC.*"]
+
 
 ## Requisitos
 ```bash
